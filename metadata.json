@@ -1,0 +1,8 @@
+{
+  "name": "Impostor",
+  "description": "Chunky arcade multiplayer party game: identify the impostor among friends with custom secret words, role reveals, group discussion, voting, and scoreboard!",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

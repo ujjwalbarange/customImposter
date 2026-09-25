@@ -1,0 +1,106 @@
+package com.example
+
+import com.example.model.GamePhase
+import com.example.viewmodel.GameViewModel
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+
+class GameViewModelTest {
+
+    private lateinit var viewModel: GameViewModel
+
+    @Before
+    fun setup() {
+        viewModel = GameViewModel()
+    }
+
+    @Test
+    fun testInitialLobbyState() {
+        val state = viewModel.uiState.value
+        assertEquals(GamePhase.LOBBY, state.phase)
+        assertEquals(4, state.players.size)
+        assertTrue(state.words.size >= 5)
+    }
+
+    @Test
+    fun testAddAndRemovePlayer() {
+        viewModel.addPlayer()
+        assertEquals(5, viewModel.uiState.value.players.size)
+
+        // Try removing
+        val playerToRemove = viewModel.uiState.value.players.last()
+        viewModel.removePlayer(playerToRemove.id)
+        assertEquals(4, viewModel.uiState.value.players.size)
+
+        // Cannot drop below 3
+        val p4 = viewModel.uiState.value.players[3]
+        viewModel.removePlayer(p4.id)
+        assertEquals(3, viewModel.uiState.value.players.size)
+        val p3 = viewModel.uiState.value.players[2]
+        viewModel.removePlayer(p3.id)
+        // Remains 3
+        assertEquals(3, viewModel.uiState.value.players.size)
+    }
+
+    @Test
+    fun testRenamePlayer() {
+        val firstPlayer = viewModel.uiState.value.players[0]
+        viewModel.renamePlayer(firstPlayer.id, "Sherlock")
+        assertEquals("Sherlock", viewModel.uiState.value.players[0].name)
+    }
+
+    @Test
+    fun testWordEntryAndGameFlow() {
+        viewModel.goToWordEntry()
+        assertEquals(GamePhase.WORD_ENTRY, viewModel.uiState.value.phase)
+
+        viewModel.addWord("Telescope")
+        assertTrue(viewModel.uiState.value.words.any { it.word == "Telescope" })
+
+        // Start game round
+        viewModel.startGameRound()
+        val inGame = viewModel.uiState.value
+        assertEquals(GamePhase.PASS_AND_PLAY, inGame.phase)
+        assertTrue(inGame.currentSecretWord.isNotBlank())
+        assertTrue(inGame.players.any { it.id == inGame.impostorPlayerId })
+
+        // Reveal card
+        viewModel.revealCard()
+        assertTrue(viewModel.uiState.value.isCardRevealed)
+
+        // Pass to next players until discussion
+        val playerCount = inGame.players.size
+        for (i in 0 until playerCount) {
+            viewModel.nextPassPlayer()
+        }
+        assertEquals(GamePhase.DISCUSSION, viewModel.uiState.value.phase)
+
+        // Finish discussion -> voting
+        viewModel.finishDiscussion()
+        assertEquals(GamePhase.VOTING, viewModel.uiState.value.phase)
+
+        // Vote for the impostor
+        val impostorId = viewModel.uiState.value.impostorPlayerId
+        viewModel.selectVotePlayer(impostorId)
+        viewModel.submitVote()
+
+        val revealState = viewModel.uiState.value
+        assertEquals(GamePhase.REVEAL, revealState.phase)
+        assertNotNull(revealState.lastRoundResult)
+        assertTrue(revealState.lastRoundResult!!.civiliansWon)
+
+        // Civilians should have score 1, Impostor should have score 0
+        val impostor = revealState.players.first { it.id == impostorId }
+        val civilian = revealState.players.first { it.id != impostorId }
+        assertEquals(0, impostor.score)
+        assertEquals(1, civilian.score)
+
+        // Return to lobby
+        viewModel.finishReveal()
+        assertEquals(GamePhase.LOBBY, viewModel.uiState.value.phase)
+    }
+}
