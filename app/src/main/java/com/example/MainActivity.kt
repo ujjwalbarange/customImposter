@@ -79,7 +79,8 @@ fun ImpostorApp(viewModel: GameViewModel) {
             GamePhase.WORD_ENTRY -> {
                 WordEntryScreen(
                     words = uiState.words,
-                    onAddWord = { viewModel.addWord(it) },
+                    players = uiState.players,
+                    onAddWord = { word, authorId -> viewModel.addWord(word, authorId) },
                     onRemoveWord = { viewModel.removeWord(it) },
                     onQuickPackSelected = { viewModel.quickFillPack(it) },
                     onStartGame = { viewModel.startGameRound() },

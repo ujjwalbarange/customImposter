@@ -54,6 +54,52 @@ class GameViewModelTest {
     }
 
     @Test
+    fun testWordAttributionAndImpostorExclusion() {
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+
+        val authorId = 2 // Player 2
+        // Add 5 words all authored by Player 2
+        viewModel.addWord("Guitar", authorPlayerId = authorId)
+        viewModel.addWord("Piano", authorPlayerId = authorId)
+        viewModel.addWord("Drums", authorPlayerId = authorId)
+        viewModel.addWord("Violin", authorPlayerId = authorId)
+        viewModel.addWord("Flute", authorPlayerId = authorId)
+
+        // Run multiple rounds to ensure Player 2 is NEVER the impostor
+        for (round in 1..20) {
+            viewModel.startGameRound()
+            val state = viewModel.uiState.value
+            // The author must NEVER be the impostor
+            assertTrue("Player 2 is the author and should never be the impostor", state.impostorPlayerId != authorId)
+            assertTrue("Impostor should be one of the other players", state.players.any { it.id == state.impostorPlayerId && it.id != authorId })
+            viewModel.returnToLobby()
+            viewModel.goToWordEntry()
+        }
+    }
+
+    @Test
+    fun testAnonymousWordAllowsAnyImpostor() {
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+
+        // Add 5 anonymous words
+        for (i in 1..5) {
+            viewModel.addWord("AnonWord$i", authorPlayerId = null)
+        }
+
+        val chosenImpostors = mutableSetOf<Int>()
+        for (round in 1..40) {
+            viewModel.startGameRound()
+            chosenImpostors.add(viewModel.uiState.value.impostorPlayerId)
+            viewModel.returnToLobby()
+            viewModel.goToWordEntry()
+        }
+        // Over 40 rounds among 4 players, multiple players should have been selected
+        assertTrue(chosenImpostors.size > 1)
+    }
+
+    @Test
     fun testWordEntryAndGameFlow() {
         viewModel.goToWordEntry()
         assertEquals(GamePhase.WORD_ENTRY, viewModel.uiState.value.phase)

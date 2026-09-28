@@ -69,11 +69,11 @@ class GameViewModel : ViewModel() {
     }
 
     // --- Word Management ---
-    fun addWord(wordText: String) {
+    fun addWord(wordText: String, authorPlayerId: Int? = null) {
         val trimmed = wordText.trim()
         if (trimmed.isEmpty()) return
         _uiState.update { current ->
-            current.copy(words = current.words + CustomWord(word = trimmed))
+            current.copy(words = current.words + CustomWord(word = trimmed, authorPlayerId = authorPlayerId))
         }
     }
 
@@ -85,7 +85,7 @@ class GameViewModel : ViewModel() {
 
     fun quickFillPack(pack: List<String>) {
         _uiState.update { current ->
-            val newWords = pack.map { CustomWord(word = it) }
+            val newWords = pack.map { CustomWord(word = it, authorPlayerId = null) }
             current.copy(words = newWords)
         }
     }
@@ -116,13 +116,22 @@ class GameViewModel : ViewModel() {
         val state = _uiState.value
         if (state.words.size < 5 || state.players.size < 3) return
 
-        val randomWord = state.words.random().word
-        val randomImpostor = state.players.random()
+        val selectedWord = state.words.random()
+        // The player who added that specific word CANNOT be the Impostor.
+        // If Anonymous (authorPlayerId == null), anyone can be the Impostor.
+        val eligibleImpostors = if (selectedWord.authorPlayerId != null) {
+            val nonAuthors = state.players.filter { it.id != selectedWord.authorPlayerId }
+            if (nonAuthors.isNotEmpty()) nonAuthors else state.players
+        } else {
+            state.players
+        }
+
+        val randomImpostor = eligibleImpostors.random()
 
         _uiState.update { current ->
             current.copy(
                 phase = GamePhase.PASS_AND_PLAY,
-                currentSecretWord = randomWord,
+                currentSecretWord = selectedWord.word,
                 impostorPlayerId = randomImpostor.id,
                 currentPassIndex = 0,
                 isCardRevealed = false,

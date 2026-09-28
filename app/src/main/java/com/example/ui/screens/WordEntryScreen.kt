@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,12 +19,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -48,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.CustomWord
+import com.example.model.Player
 import com.example.model.WordPresets
 import com.example.ui.components.ArcadeButton
 import com.example.ui.components.CircularBackButton
@@ -56,6 +60,7 @@ import com.example.ui.theme.DeleteRed
 import com.example.ui.theme.FredokaFontFamily
 import com.example.ui.theme.LightIceBlue
 import com.example.ui.theme.NavyBackground
+import com.example.ui.theme.PlayerColors
 import com.example.ui.theme.PrimaryCyan
 import com.example.ui.theme.PureWhite
 import com.example.ui.theme.TextDark
@@ -64,7 +69,8 @@ import com.example.ui.theme.WinGreen
 @Composable
 fun WordEntryScreen(
     words: List<CustomWord>,
-    onAddWord: (String) -> Unit,
+    players: List<Player>,
+    onAddWord: (word: String, authorPlayerId: Int?) -> Unit,
     onRemoveWord: (String) -> Unit,
     onQuickPackSelected: (List<String>) -> Unit,
     onStartGame: () -> Unit,
@@ -72,6 +78,8 @@ fun WordEntryScreen(
     modifier: Modifier = Modifier
 ) {
     var newWordInput by remember { mutableStateOf("") }
+    // Selected author ID for new word; null means Anonymous
+    var selectedAuthorPlayerId by remember { mutableStateOf<Int?>(null) }
     // Set of word IDs that are temporarily unmasked by user
     val revealedWordIds = remember { mutableStateListOf<String>() }
 
@@ -79,7 +87,7 @@ fun WordEntryScreen(
 
     fun handleAddWord() {
         if (newWordInput.isNotBlank()) {
-            onAddWord(newWordInput.trim())
+            onAddWord(newWordInput.trim(), selectedAuthorPlayerId)
             newWordInput = ""
         }
     }
@@ -144,7 +152,7 @@ fun WordEntryScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Enter at least 5 words for the game. Keep them hidden from the Impostor!",
+                        text = "Enter at least 5 words for the game. Choose who added it so they can never be the Impostor for their own word!",
                         color = PureWhite,
                         fontFamily = FredokaFontFamily,
                         fontWeight = FontWeight.Normal,
@@ -160,7 +168,7 @@ fun WordEntryScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                    .padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -211,6 +219,124 @@ fun WordEntryScreen(
                 }
             }
 
+            // 1. Player Selection Slider (Directly below word input)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "ADDED BY:",
+                    fontFamily = FredokaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = Color(0xFF5A667A),
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp),
+                    modifier = Modifier.testTag("player_selection_slider")
+                ) {
+                    // Neutral / Gray "Anonymous" pill
+                    item {
+                        val isAnonymous = (selectedAuthorPlayerId == null)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .then(
+                                    if (isAnonymous) {
+                                        Modifier.border(
+                                            width = 3.dp,
+                                            color = DarkPill,
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .background(if (isAnonymous) Color(0xFF6C757D) else Color(0xFFE2E8F0))
+                                .clickable { selectedAuthorPlayerId = null }
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                                .testTag("author_pill_anonymous"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (isAnonymous) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = PureWhite,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "Anonymous",
+                                    fontFamily = FredokaFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (isAnonymous) PureWhite else Color(0xFF4A5568)
+                                )
+                            }
+                        }
+                    }
+
+                    // One button for each active player with matching color and name
+                    items(players, key = { it.id }) { player ->
+                        val isSelected = (selectedAuthorPlayerId == player.id)
+                        val playerColor = PlayerColors.getOrElse(player.colorIndex) { PlayerColors[0] }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.border(
+                                            width = 3.dp,
+                                            color = DarkPill,
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .background(playerColor)
+                                .clickable {
+                                    selectedAuthorPlayerId = if (isSelected) null else player.id
+                                }
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                                .testTag("author_pill_${player.id}"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = TextDark,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Text(
+                                    text = player.name,
+                                    fontFamily = FredokaFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = TextDark
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Quick preset pack chips for easy one-tap filling
             Column(
                 modifier = Modifier
@@ -221,7 +347,7 @@ fun WordEntryScreen(
                     text = "QUICK PACKS (TAP TO LOAD):",
                     fontFamily = FredokaFontFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color(0xFF5A667A),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 )
@@ -245,9 +371,9 @@ fun WordEntryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Secret Words Obfuscated List
+            // Secret Words Obfuscated List with color-coding
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -277,13 +403,22 @@ fun WordEntryScreen(
                         val isRevealed = revealedWordIds.contains(item.id)
                         val obfuscatedText = "•".repeat(item.word.length)
 
+                        // 3. Colored Word List: Lookup author's color
+                        val authorPlayer = players.firstOrNull { it.id == item.authorPlayerId }
+                        val authorColor = if (authorPlayer != null) {
+                            PlayerColors.getOrElse(authorPlayer.colorIndex) { PlayerColors[0] }
+                        } else {
+                            Color(0xFF94A3B8) // Neutral gray for Anonymous
+                        }
+                        val authorLabel = authorPlayer?.name ?: "Anonymous"
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(58.dp)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(PureWhite)
-                                .padding(horizontal = 16.dp),
+                                .padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -291,11 +426,22 @@ fun WordEntryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
+                                // Author indicator dot matching player's exact color
+                                Box(
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(authorColor)
+                                        .border(1.5.dp, PureWhite, CircleShape)
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
                                 Text(
                                     text = "Word ${index + 1}: ",
                                     fontFamily = FredokaFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 17.sp,
+                                    fontSize = 16.sp,
                                     color = TextDark
                                 )
 
@@ -303,18 +449,26 @@ fun WordEntryScreen(
                                     text = if (isRevealed) item.word else obfuscatedText,
                                     fontFamily = FredokaFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
+                                    fontSize = 17.sp,
                                     color = if (isRevealed) PrimaryCyan else Color(0xFF6B7280),
                                     letterSpacing = if (isRevealed) 0.5.sp else 2.sp
                                 )
 
-                                if (!isRevealed) {
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                // Small author pill indicator
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(authorColor.copy(alpha = 0.25f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
                                     Text(
-                                        text = "(${item.word.length})",
+                                        text = authorLabel,
                                         fontFamily = FredokaFontFamily,
-                                        fontSize = 12.sp,
-                                        color = Color(0xFFA0AAB8)
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (authorPlayer != null) TextDark else Color(0xFF475569)
                                     )
                                 }
                             }
@@ -409,3 +563,4 @@ private fun PresetChip(
         )
     }
 }
+
