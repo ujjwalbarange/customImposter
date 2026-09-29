@@ -1,16 +1,20 @@
 package com.example.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.model.CustomWord
 import com.example.model.GamePhase
 import com.example.model.Player
 import com.example.model.RoundResult
 import com.example.model.WordPresets
+import com.example.service.GeminiHintService
 import java.security.SecureRandom
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class GameUiState(
     val phase: GamePhase = GamePhase.LOBBY,
@@ -22,6 +26,11 @@ data class GameUiState(
     ),
     val words: List<CustomWord> = WordPresets.HOUSEHOLD.take(5).map { CustomWord(word = it) },
     val playedWordIds: Set<String> = emptySet(),
+    val showCategoryToImpostor: Boolean = true,
+    val showAiHintToImpostor: Boolean = true,
+    val isSettingUpRound: Boolean = false,
+    val aiCategory: String? = null,
+    val aiHint: String? = null,
     val currentPassIndex: Int = 0,
     val isCardRevealed: Boolean = false,
     val currentSecretWord: String = "",
@@ -35,6 +44,15 @@ class GameViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
     private val secureRandom = SecureRandom()
+
+    // --- Settings ---
+    fun setShowCategoryToImpostor(enabled: Boolean) {
+        _uiState.update { it.copy(showCategoryToImpostor = enabled) }
+    }
+
+    fun setShowAiHintToImpostor(enabled: Boolean) {
+        _uiState.update { it.copy(showAiHintToImpostor = enabled) }
+    }
 
     // --- Player Management ---
     fun addPlayer() {
@@ -149,16 +167,49 @@ class GameViewModel : ViewModel() {
         val randomImpostorIndex = secureRandom.nextInt(eligibleImpostors.size)
         val randomImpostor = eligibleImpostors[randomImpostorIndex]
 
-        _uiState.update { current ->
-            current.copy(
-                phase = GamePhase.PASS_AND_PLAY,
-                currentSecretWord = selectedWord.word,
-                impostorPlayerId = randomImpostor.id,
-                playedWordIds = updatedPlayedIds,
-                currentPassIndex = 0,
-                isCardRevealed = false,
-                selectedVotePlayerId = null
-            )
+        val needsAiData = state.showCategoryToImpostor || state.showAiHintToImpostor
+
+        if (needsAiData) {
+            _uiState.update { current ->
+                current.copy(
+                    isSettingUpRound = true,
+                    currentSecretWord = selectedWord.word,
+                    impostorPlayerId = randomImpostor.id,
+                    playedWordIds = updatedPlayedIds,
+                    aiCategory = null,
+                    aiHint = null,
+                    currentPassIndex = 0,
+                    isCardRevealed = false,
+                    selectedVotePlayerId = null
+                )
+            }
+
+            viewModelScope.launch(Dispatchers.IO) {
+                val result = GeminiHintService.fetchGeminiData(selectedWord.word)
+                _uiState.update { current ->
+                    current.copy(
+                        isSettingUpRound = false,
+                        phase = GamePhase.PASS_AND_PLAY,
+                        aiCategory = result.category ?: "Secret Words",
+                        aiHint = result.hint
+                    )
+                }
+            }
+        } else {
+            _uiState.update { current ->
+                current.copy(
+                    phase = GamePhase.PASS_AND_PLAY,
+                    isSettingUpRound = false,
+                    currentSecretWord = selectedWord.word,
+                    impostorPlayerId = randomImpostor.id,
+                    playedWordIds = updatedPlayedIds,
+                    aiCategory = null,
+                    aiHint = null,
+                    currentPassIndex = 0,
+                    isCardRevealed = false,
+                    selectedVotePlayerId = null
+                )
+            }
         }
     }
 

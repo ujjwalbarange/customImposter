@@ -29,10 +29,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,6 +74,10 @@ fun WordEntryScreen(
     words: List<CustomWord>,
     players: List<Player>,
     playedWordIds: Set<String> = emptySet(),
+    showCategoryToImpostor: Boolean = true,
+    showAiHintToImpostor: Boolean = false,
+    onToggleCategory: (Boolean) -> Unit = {},
+    onToggleAiHint: (Boolean) -> Unit = {},
     onAddWord: (word: String, authorPlayerId: Int?) -> Unit,
     onRemoveWord: (String) -> Unit,
     onClearAll: () -> Unit,
@@ -83,6 +90,7 @@ fun WordEntryScreen(
     // Selected author ID for new word; default to first player, null means Anonymous
     var selectedAuthorPlayerId by remember { mutableStateOf<Int?>(players.firstOrNull()?.id) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     val canStart = words.size >= 5
 
@@ -155,6 +163,86 @@ fun WordEntryScreen(
         )
     }
 
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text("GAME SETTINGS", fontFamily = FredokaFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Toggle 1: Show Category to Impostor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Show Category to Impostor",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "Provides broad category clue (e.g. Food, Location)",
+                                fontFamily = FredokaFontFamily,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Switch(
+                            checked = showCategoryToImpostor,
+                            onCheckedChange = onToggleCategory,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = PrimaryCyan
+                            )
+                        )
+                    }
+
+                    // Toggle 2: Show AI Hint to Impostor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Show AI Hint to Impostor",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "Gemini AI lateral hint (e.g. 'Moon' for 'Croissant')",
+                                fontFamily = FredokaFontFamily,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Switch(
+                            checked = showAiHintToImpostor,
+                            onCheckedChange = onToggleAiHint,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = PrimaryCyan
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("CLOSE", fontFamily = FredokaFontFamily, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -190,25 +278,48 @@ fun WordEntryScreen(
                             color = PureWhite,
                             fontFamily = FredokaFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp,
+                            fontSize = 24.sp,
                             letterSpacing = 1.sp
                         )
 
-                        // Word Count Badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (canStart) WinGreen else DarkPill)
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = "${words.size}/5",
-                                color = PureWhite,
-                                fontFamily = FredokaFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
+                            // Settings Button
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(DarkPill)
+                                    .clickable { showSettingsDialog = true }
+                                    .testTag("word_entry_settings_button"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Game Settings",
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Word Count Badge
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (canStart) WinGreen else DarkPill)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${words.size}/5",
+                                    color = PureWhite,
+                                    fontFamily = FredokaFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
                     }
 

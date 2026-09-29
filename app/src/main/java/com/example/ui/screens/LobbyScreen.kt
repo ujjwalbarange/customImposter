@@ -33,6 +33,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,6 +68,10 @@ import com.example.ui.theme.TextDark
 @Composable
 fun LobbyScreen(
     players: List<Player>,
+    showCategoryToImpostor: Boolean,
+    showAiHintToImpostor: Boolean,
+    onToggleCategory: (Boolean) -> Unit,
+    onToggleAiHint: (Boolean) -> Unit,
     onPlayClick: () -> Unit,
     onAddPlayer: () -> Unit,
     onRemovePlayer: (Int) -> Unit,
@@ -364,14 +370,81 @@ fun LobbyScreen(
             onDismissRequest = { showSettingsDialog = false },
             shape = RoundedCornerShape(24.dp),
             title = {
-                Text("GAME SETTINGS", fontFamily = FredokaFontFamily, fontWeight = FontWeight.Bold)
+                Text("GAME SETTINGS", fontFamily = FredokaFontFamily, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Toggle 1: Show Category to Impostor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Show Category to Impostor",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "Provides broad category clue (e.g. Food, Location)",
+                                fontFamily = FredokaFontFamily,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Switch(
+                            checked = showCategoryToImpostor,
+                            onCheckedChange = onToggleCategory,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = PrimaryCyan
+                            )
+                        )
+                    }
+
+                    // Toggle 2: Show AI Hint to Impostor
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Show AI Hint to Impostor",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = TextDark
+                            )
+                            Text(
+                                text = "Gemini AI lateral hint (e.g. 'Moon' for 'Croissant')",
+                                fontFamily = FredokaFontFamily,
+                                fontSize = 12.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Switch(
+                            checked = showAiHintToImpostor,
+                            onCheckedChange = onToggleAiHint,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PureWhite,
+                                checkedTrackColor = PrimaryCyan
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
                     Text(
                         "Active Players: ${players.size} (Min 3, Max 10)",
-                        fontFamily = FredokaFontFamily
+                        fontFamily = FredokaFontFamily,
+                        fontSize = 13.sp,
+                        color = Color(0xFF6B7280)
                     )
+
                     TextButton(
                         onClick = {
                             onResetScores()

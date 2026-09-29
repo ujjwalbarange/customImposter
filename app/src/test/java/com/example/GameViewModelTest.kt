@@ -16,6 +16,37 @@ class GameViewModelTest {
     @Before
     fun setup() {
         viewModel = GameViewModel()
+        // Default to false in offline unit tests so game flow advances synchronously
+        viewModel.setShowCategoryToImpostor(false)
+        viewModel.setShowAiHintToImpostor(false)
+    }
+
+    @Test
+    fun testSettingsToggles() {
+        val vm = GameViewModel()
+        // Default state: Show Category is true, Show AI Hint is true
+        assertTrue(vm.uiState.value.showCategoryToImpostor)
+        assertTrue(vm.uiState.value.showAiHintToImpostor)
+
+        vm.setShowCategoryToImpostor(false)
+        assertFalse(vm.uiState.value.showCategoryToImpostor)
+
+        vm.setShowAiHintToImpostor(false)
+        assertFalse(vm.uiState.value.showAiHintToImpostor)
+    }
+
+    @Test
+    fun testStartGameRoundWithAiToggleShowsLoadingOverlay() {
+        val vm = GameViewModel()
+        vm.setShowCategoryToImpostor(true)
+        vm.setShowAiHintToImpostor(true)
+
+        vm.startGameRound()
+        val state = vm.uiState.value
+        // Immediately shows loading overlay while background generation runs
+        assertTrue(state.isSettingUpRound)
+        assertTrue(state.currentSecretWord.isNotBlank())
+        assertTrue(state.impostorPlayerId != -1)
     }
 
     @Test

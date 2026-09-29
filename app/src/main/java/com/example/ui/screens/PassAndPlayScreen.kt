@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,7 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +59,10 @@ fun PassAndPlayScreen(
     isCardRevealed: Boolean,
     secretWord: String,
     isImpostor: Boolean,
+    showCategory: Boolean = true,
+    showAiHint: Boolean = false,
+    aiCategory: String? = null,
+    aiHint: String? = null,
     onRevealCard: () -> Unit,
     onGotItClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -159,10 +168,10 @@ fun PassAndPlayScreen(
                         if (isImpostor) {
                             // Impostor view: Fedora + Sunglasses + IMPOSTOR
                             SpyFedoraIllustration(
-                                modifier = Modifier.size(width = 110.dp, height = 75.dp)
+                                modifier = Modifier.size(width = 96.dp, height = 66.dp)
                             )
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
                                 text = "IMPOSTOR",
@@ -173,16 +182,53 @@ fun PassAndPlayScreen(
                                 letterSpacing = 2.sp
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            // Show Category if enabled
+                            if (showCategory && !aiCategory.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "CATEGORY: ${aiCategory.uppercase()}",
+                                    color = PureWhite,
+                                    fontFamily = FredokaFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    letterSpacing = 1.sp,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.testTag("impostor_category_text")
+                                )
+                            }
 
-                            Text(
-                                text = "CATEGORY: CUSTOM WORDS",
-                                color = PureWhite.copy(alpha = 0.85f),
-                                fontFamily = FredokaFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                letterSpacing = 1.sp
-                            )
+                            // Show AI Hint pill if enabled
+                            if (showAiHint && !aiHint.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color(0xFF1E232A).copy(alpha = 0.92f))
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                        .testTag("impostor_ai_hint_pill"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = "AI Generated Hint",
+                                            tint = Color(0xFFFFD166),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "AI HINT: ${aiHint.uppercase()}",
+                                            color = PureWhite,
+                                            fontFamily = FredokaFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             // Civilian view: Huge Secret Word
                             Text(
