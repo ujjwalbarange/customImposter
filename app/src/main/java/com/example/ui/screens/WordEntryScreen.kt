@@ -28,15 +28,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,26 +70,89 @@ import com.example.ui.theme.WinGreen
 fun WordEntryScreen(
     words: List<CustomWord>,
     players: List<Player>,
+    playedWordIds: Set<String> = emptySet(),
     onAddWord: (word: String, authorPlayerId: Int?) -> Unit,
     onRemoveWord: (String) -> Unit,
+    onClearAll: () -> Unit,
     onQuickPackSelected: (List<String>) -> Unit,
     onStartGame: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var newWordInput by remember { mutableStateOf("") }
-    // Selected author ID for new word; null means Anonymous
-    var selectedAuthorPlayerId by remember { mutableStateOf<Int?>(null) }
-    // Set of word IDs that are temporarily unmasked by user
-    val revealedWordIds = remember { mutableStateListOf<String>() }
+    // Selected author ID for new word; default to first player, null means Anonymous
+    var selectedAuthorPlayerId by remember { mutableStateOf<Int?>(players.firstOrNull()?.id) }
+    var showClearDialog by remember { mutableStateOf(false) }
 
     val canStart = words.size >= 5
 
     fun handleAddWord() {
         if (newWordInput.isNotBlank()) {
-            onAddWord(newWordInput.trim(), selectedAuthorPlayerId)
+            val currentAuthorId = selectedAuthorPlayerId
+            onAddWord(newWordInput.trim(), currentAuthorId)
             newWordInput = ""
+
+            // 1. Player Auto-Advance Loop & 2. End of List Wrapping & 3. Anonymous Exception:
+            // When a user adds a word while a specific player is selected (e.g., Player 1),
+            // immediately update the active selection to the next player in sequence.
+            // If at the end of the roster, wrap around back to Player 1.
+            // If Anonymous/None is selected, do NOT advance (remain on Anonymous).
+            if (currentAuthorId != null && players.isNotEmpty()) {
+                val currentIndex = players.indexOfFirst { it.id == currentAuthorId }
+                if (currentIndex != -1) {
+                    val nextIndex = (currentIndex + 1) % players.size
+                    selectedAuthorPlayerId = players[nextIndex].id
+                }
+            }
         }
+    }
+
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "CLEAR ALL WORDS?",
+                    fontFamily = FredokaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "This will remove all ${words.size} custom words from the game.",
+                    fontFamily = FredokaFontFamily,
+                    fontSize = 15.sp,
+                    color = Color(0xFF4B5563)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onClearAll()
+                        showClearDialog = false
+                    }
+                ) {
+                    Text(
+                        text = "CLEAR ALL",
+                        fontFamily = FredokaFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = DeleteRed
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(
+                        text = "CANCEL",
+                        fontFamily = FredokaFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+            }
+        )
     }
 
     Box(
@@ -164,13 +227,13 @@ fun WordEntryScreen(
                 }
             }
 
-            // Word Input Row: White text input + dark circular + button
+            // Word Input Row: White text input + dark circular + button + visible Clear All button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
                     value = newWordInput,
@@ -202,7 +265,7 @@ fun WordEntryScreen(
                 // Circular Add Button
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
                         .background(DarkPill)
                         .clickable(onClick = { handleAddWord() })
@@ -214,8 +277,41 @@ fun WordEntryScreen(
                         color = PureWhite,
                         fontFamily = FredokaFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp
+                        fontSize = 30.sp
                     )
+                }
+
+                // Visible 'Clear All' Button
+                Box(
+                    modifier = Modifier
+                        .height(54.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (words.isNotEmpty()) Color(0xFFFFECEE) else Color(0xFFE2E8F0))
+                        .clickable(enabled = words.isNotEmpty()) {
+                            showClearDialog = true
+                        }
+                        .padding(horizontal = 12.dp)
+                        .testTag("clear_all_words_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Clear All Words",
+                            tint = if (words.isNotEmpty()) DeleteRed else Color(0xFF94A3B8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Clear All",
+                            fontFamily = FredokaFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (words.isNotEmpty()) DeleteRed else Color(0xFF94A3B8)
+                        )
+                    }
                 }
             }
 
@@ -400,10 +496,9 @@ fun WordEntryScreen(
                     }
                 } else {
                     itemsIndexed(words, key = { _, item -> item.id }) { index, item ->
-                        val isRevealed = revealedWordIds.contains(item.id)
                         val obfuscatedText = "•".repeat(item.word.length)
 
-                        // 3. Colored Word List: Lookup author's color
+                        // Colored Word List: Lookup author's color
                         val authorPlayer = players.firstOrNull { it.id == item.authorPlayerId }
                         val authorColor = if (authorPlayer != null) {
                             PlayerColors.getOrElse(authorPlayer.colorIndex) { PlayerColors[0] }
@@ -446,12 +541,21 @@ fun WordEntryScreen(
                                 )
 
                                 Text(
-                                    text = if (isRevealed) item.word else obfuscatedText,
+                                    text = obfuscatedText,
                                     fontFamily = FredokaFontFamily,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 17.sp,
-                                    color = if (isRevealed) PrimaryCyan else Color(0xFF6B7280),
-                                    letterSpacing = if (isRevealed) 0.5.sp else 2.sp
+                                    color = Color(0xFF6B7280),
+                                    letterSpacing = 2.sp
+                                )
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                Text(
+                                    text = "(${item.word.length})",
+                                    fontFamily = FredokaFontFamily,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFA0AAB8)
                                 )
 
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -471,44 +575,41 @@ fun WordEntryScreen(
                                         color = if (authorPlayer != null) TextDark else Color(0xFF475569)
                                     )
                                 }
+
+                                if (item.id in playedWordIds) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFE2E8F0))
+                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Played",
+                                            fontFamily = FredokaFontFamily,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            // Red X Delete Icon
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFFECEE))
+                                    .clickable { onRemoveWord(item.id) },
+                                contentAlignment = Alignment.Center
                             ) {
-                                // Peek/Reveal toggle icon
                                 Icon(
-                                    imageVector = if (isRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle peek word",
-                                    tint = Color(0xFF8E99A8),
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clickable {
-                                            if (isRevealed) {
-                                                revealedWordIds.remove(item.id)
-                                            } else {
-                                                revealedWordIds.add(item.id)
-                                            }
-                                        }
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Delete word",
+                                    tint = DeleteRed,
+                                    modifier = Modifier.size(20.dp)
                                 )
-
-                                // Red X Delete Icon
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFFFECEE))
-                                        .clickable { onRemoveWord(item.id) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Delete word",
-                                        tint = DeleteRed,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
                             }
                         }
                     }

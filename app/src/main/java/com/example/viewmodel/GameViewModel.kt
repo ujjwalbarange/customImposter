@@ -6,11 +6,11 @@ import com.example.model.GamePhase
 import com.example.model.Player
 import com.example.model.RoundResult
 import com.example.model.WordPresets
+import java.security.SecureRandom
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlin.random.Random
 
 data class GameUiState(
     val phase: GamePhase = GamePhase.LOBBY,
@@ -21,10 +21,11 @@ data class GameUiState(
         Player(id = 4, name = "Player 4", colorIndex = 3)
     ),
     val words: List<CustomWord> = WordPresets.HOUSEHOLD.take(5).map { CustomWord(word = it) },
+    val playedWordIds: Set<String> = emptySet(),
     val currentPassIndex: Int = 0,
     val isCardRevealed: Boolean = false,
     val currentSecretWord: String = "",
-    val impostorPlayerId: Int = 1,
+    val impostorPlayerId: Int = -1,
     val selectedVotePlayerId: Int? = null,
     val lastRoundResult: RoundResult? = null
 )
@@ -33,6 +34,7 @@ class GameViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+    private val secureRandom = SecureRandom()
 
     // --- Player Management ---
     fun addPlayer() {
@@ -79,20 +81,23 @@ class GameViewModel : ViewModel() {
 
     fun removeWord(wordId: String) {
         _uiState.update { current ->
-            current.copy(words = current.words.filterNot { it.id == wordId })
+            current.copy(
+                words = current.words.filterNot { it.id == wordId },
+                playedWordIds = current.playedWordIds - wordId
+            )
         }
     }
 
     fun quickFillPack(pack: List<String>) {
         _uiState.update { current ->
             val newWords = pack.map { CustomWord(word = it, authorPlayerId = null) }
-            current.copy(words = newWords)
+            current.copy(words = newWords, playedWordIds = emptySet())
         }
     }
 
     fun clearAllWords() {
         _uiState.update { current ->
-            current.copy(words = emptyList())
+            current.copy(words = emptyList(), playedWordIds = emptySet())
         }
     }
 
@@ -116,9 +121,24 @@ class GameViewModel : ViewModel() {
         val state = _uiState.value
         if (state.words.size < 5 || state.players.size < 3) return
 
-        val selectedWord = state.words.random()
-        // The player who added that specific word CANNOT be the Impostor.
-        // If Anonymous (authorPlayerId == null), anyone can be the Impostor.
+        // 1. Prevent Word Repetition:
+        // Filter out words that have already been played across rounds.
+        val unplayedWords = state.words.filter { it.id !in state.playedWordIds }
+        val (poolToPickFrom, basePlayedIds) = if (unplayedWords.isNotEmpty()) {
+            unplayedWords to state.playedWordIds
+        } else {
+            // If all words have been played, automatically reset played history and use full list
+            state.words to emptySet<String>()
+        }
+
+        // Strict unbiased randomization using SecureRandom
+        val randomWordIndex = secureRandom.nextInt(poolToPickFrom.size)
+        val selectedWord = poolToPickFrom[randomWordIndex]
+        val updatedPlayedIds = basePlayedIds + selectedWord.id
+
+        // 2. Strict Impostor Selection Logic:
+        // The randomly selected Impostor CANNOT be the author of the chosen Secret Word.
+        // Dynamically filter out the author before picking the Impostor.
         val eligibleImpostors = if (selectedWord.authorPlayerId != null) {
             val nonAuthors = state.players.filter { it.id != selectedWord.authorPlayerId }
             if (nonAuthors.isNotEmpty()) nonAuthors else state.players
@@ -126,13 +146,15 @@ class GameViewModel : ViewModel() {
             state.players
         }
 
-        val randomImpostor = eligibleImpostors.random()
+        val randomImpostorIndex = secureRandom.nextInt(eligibleImpostors.size)
+        val randomImpostor = eligibleImpostors[randomImpostorIndex]
 
         _uiState.update { current ->
             current.copy(
                 phase = GamePhase.PASS_AND_PLAY,
                 currentSecretWord = selectedWord.word,
                 impostorPlayerId = randomImpostor.id,
+                playedWordIds = updatedPlayedIds,
                 currentPassIndex = 0,
                 isCardRevealed = false,
                 selectedVotePlayerId = null

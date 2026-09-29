@@ -100,6 +100,97 @@ class GameViewModelTest {
     }
 
     @Test
+    fun testWordPersistenceAcrossRounds() {
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+
+        viewModel.addWord("Secret1")
+        viewModel.addWord("Secret2")
+        viewModel.addWord("Secret3")
+        viewModel.addWord("Secret4")
+        viewModel.addWord("Secret5")
+
+        assertEquals(5, viewModel.uiState.value.words.size)
+
+        // Play round
+        viewModel.startGameRound()
+        assertEquals(GamePhase.PASS_AND_PLAY, viewModel.uiState.value.phase)
+        assertEquals(5, viewModel.uiState.value.words.size) // Persists!
+
+        // Complete pass and play to discussion -> voting -> reveal
+        for (i in 0 until viewModel.uiState.value.players.size) {
+            viewModel.nextPassPlayer()
+        }
+        viewModel.finishDiscussion()
+        viewModel.selectVotePlayer(viewModel.uiState.value.players[0].id)
+        viewModel.submitVote()
+        assertEquals(GamePhase.REVEAL, viewModel.uiState.value.phase)
+        assertEquals(5, viewModel.uiState.value.words.size) // Persists!
+
+        // Finish reveal back to lobby
+        viewModel.finishReveal()
+        assertEquals(GamePhase.LOBBY, viewModel.uiState.value.phase)
+        assertEquals(5, viewModel.uiState.value.words.size) // Persists!
+
+        // Back to word entry
+        viewModel.goToWordEntry()
+        assertEquals(GamePhase.WORD_ENTRY, viewModel.uiState.value.phase)
+        assertEquals(5, viewModel.uiState.value.words.size) // Still persists!
+    }
+
+    @Test
+    fun testPreventWordRepetitionAcrossRounds() {
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+
+        val customWords = listOf("Apple", "Banana", "Cherry", "Date", "Elderberry")
+        customWords.forEach { viewModel.addWord(it) }
+
+        val playedWords = mutableListOf<String>()
+
+        // Play 5 rounds
+        for (i in 1..5) {
+            viewModel.startGameRound()
+            val chosenWord = viewModel.uiState.value.currentSecretWord
+            assertFalse("Word '$chosenWord' should not repeat within the 5 unique words cycle", playedWords.contains(chosenWord))
+            playedWords.add(chosenWord)
+            viewModel.returnToLobby()
+            viewModel.goToWordEntry()
+        }
+
+        // All 5 words were played exactly once
+        assertEquals(5, playedWords.toSet().size)
+
+        // 6th round should automatically reset history and pick again from the full list
+        viewModel.startGameRound()
+        val sixthWord = viewModel.uiState.value.currentSecretWord
+        assertTrue(customWords.contains(sixthWord))
+        // playedWordIds should now contain 1 item (the reset cycle restarted)
+        assertEquals(1, viewModel.uiState.value.playedWordIds.size)
+    }
+
+    @Test
+    fun testClearAllWordsEmptiesListAndResetsPlayedHistory() {
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+        assertEquals(0, viewModel.uiState.value.words.size)
+        assertEquals(0, viewModel.uiState.value.playedWordIds.size)
+
+        viewModel.quickFillPack(listOf("Cat", "Dog", "Fish", "Bird", "Mouse"))
+        assertEquals(5, viewModel.uiState.value.words.size)
+
+        viewModel.startGameRound()
+        assertEquals(1, viewModel.uiState.value.playedWordIds.size)
+
+        viewModel.returnToLobby()
+        viewModel.goToWordEntry()
+        viewModel.clearAllWords()
+
+        assertEquals(0, viewModel.uiState.value.words.size)
+        assertEquals(0, viewModel.uiState.value.playedWordIds.size)
+    }
+
+    @Test
     fun testWordEntryAndGameFlow() {
         viewModel.goToWordEntry()
         assertEquals(GamePhase.WORD_ENTRY, viewModel.uiState.value.phase)
