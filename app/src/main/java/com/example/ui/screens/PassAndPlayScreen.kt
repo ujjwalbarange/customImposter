@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -197,7 +197,7 @@ fun PassAndPlayScreen(
                                 )
                             }
 
-                            // Show AI Hint pill if enabled
+                            // Show Hint pill if enabled
                             if (showAiHint && !aiHint.isNullOrBlank()) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Box(
@@ -205,7 +205,7 @@ fun PassAndPlayScreen(
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(Color(0xFF1E232A).copy(alpha = 0.92f))
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
-                                        .testTag("impostor_ai_hint_pill"),
+                                        .testTag("impostor_hint_pill"),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Row(
@@ -213,13 +213,13 @@ fun PassAndPlayScreen(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.AutoAwesome,
-                                            contentDescription = "AI Generated Hint",
+                                            imageVector = Icons.Default.Lightbulb,
+                                            contentDescription = "Hint",
                                             tint = Color(0xFFFFD166),
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Text(
-                                            text = "AI HINT: ${aiHint.uppercase()}",
+                                            text = "HINT: ${aiHint.uppercase()}",
                                             color = PureWhite,
                                             fontFamily = FredokaFontFamily,
                                             fontWeight = FontWeight.Bold,

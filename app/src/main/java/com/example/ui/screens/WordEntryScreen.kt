@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -55,7 +56,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.CustomWord
 import com.example.model.Player
-import com.example.model.WordPresets
 import com.example.ui.components.ArcadeButton
 import com.example.ui.components.CircularBackButton
 import com.example.ui.theme.DarkPill
@@ -69,19 +69,37 @@ import com.example.ui.theme.PureWhite
 import com.example.ui.theme.TextDark
 import com.example.ui.theme.WinGreen
 
+private val CATEGORIES = listOf(
+    "Random",
+    "Animals & Nature",
+    "Books",
+    "Countries & Cities",
+    "Famous People",
+    "Games & Leisure",
+    "Household",
+    "Movies & TV",
+    "Music",
+    "Professions",
+    "Sports",
+    "Technology",
+    "Vehicles"
+)
+
 @Composable
 fun WordEntryScreen(
     words: List<CustomWord>,
     players: List<Player>,
     playedWordIds: Set<String> = emptySet(),
     showCategoryToImpostor: Boolean = true,
-    showAiHintToImpostor: Boolean = false,
+    showAiHintToImpostor: Boolean = true,
+    isGeneratingCategoryWords: Boolean = false,
+    activeGeneratingCategory: String? = null,
     onToggleCategory: (Boolean) -> Unit = {},
     onToggleAiHint: (Boolean) -> Unit = {},
     onAddWord: (word: String, authorPlayerId: Int?) -> Unit,
     onRemoveWord: (String) -> Unit,
     onClearAll: () -> Unit,
-    onQuickPackSelected: (List<String>) -> Unit,
+    onCategorySelected: (String) -> Unit = {},
     onStartGame: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -203,7 +221,7 @@ fun WordEntryScreen(
                         )
                     }
 
-                    // Toggle 2: Show AI Hint to Impostor
+                    // Toggle 2: Show Hint to Impostor
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -211,14 +229,14 @@ fun WordEntryScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = "Show AI Hint to Impostor",
+                                text = "Show Hint to Impostor",
                                 fontFamily = FredokaFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = TextDark
                             )
                             Text(
-                                text = "Gemini AI lateral hint (e.g. 'Moon' for 'Croissant')",
+                                text = "Provides a subtle lateral hint to the Impostor",
                                 fontFamily = FredokaFontFamily,
                                 fontSize = 12.sp,
                                 color = Color(0xFF6B7280)
@@ -544,36 +562,61 @@ fun WordEntryScreen(
                 }
             }
 
-            // Quick preset pack chips for easy one-tap filling
+            // Category Quick-Add Slider: Generate 6 words
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = "QUICK PACKS (TAP TO LOAD):",
-                    fontFamily = FredokaFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    color = Color(0xFF5A667A),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "ADD 6 WORDS (BY CATEGORY):",
+                        fontFamily = FredokaFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = Color(0xFF5A667A)
+                    )
+
+                    if (isGeneratingCategoryWords) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = PrimaryCyan,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "Loading...",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = PrimaryCyan
+                            )
+                        }
+                    }
+                }
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 2.dp)
+                    contentPadding = PaddingValues(horizontal = 2.dp),
+                    modifier = Modifier.testTag("category_quick_add_slider")
                 ) {
-                    item {
-                        PresetChip(label = "Household", onClick = { onQuickPackSelected(WordPresets.HOUSEHOLD) })
-                    }
-                    item {
-                        PresetChip(label = "Food & Treats", onClick = { onQuickPackSelected(WordPresets.FOOD) })
-                    }
-                    item {
-                        PresetChip(label = "Animals", onClick = { onQuickPackSelected(WordPresets.ANIMALS) })
-                    }
-                    item {
-                        PresetChip(label = "Party Pack", onClick = { onQuickPackSelected(WordPresets.PARTY_PACK) })
+                    items(CATEGORIES) { category ->
+                        val isThisLoading = isGeneratingCategoryWords && activeGeneratingCategory == category
+                        CategoryChip(
+                            label = category,
+                            isLoading = isThisLoading,
+                            enabled = !isGeneratingCategoryWords,
+                            onClick = { onCategorySelected(category) }
+                        )
                     }
                 }
             }
@@ -607,16 +650,23 @@ fun WordEntryScreen(
                     }
                 } else {
                     itemsIndexed(words, key = { _, item -> item.id }) { index, item ->
-                        val obfuscatedText = "•".repeat(item.word.length)
+                        // Completely obfuscate length to fixed string of bullets so players cannot guess the word length
+                        val obfuscatedText = "••••••••"
 
-                        // Colored Word List: Lookup author's color
-                        val authorPlayer = players.firstOrNull { it.id == item.authorPlayerId }
-                        val authorColor = if (authorPlayer != null) {
-                            PlayerColors.getOrElse(authorPlayer.colorIndex) { PlayerColors[0] }
-                        } else {
-                            Color(0xFF94A3B8) // Neutral gray for Anonymous
+                        // Word Attribution: GAME vs Human Player vs Anonymous
+                        val isGame = item.isGameGenerated
+                        val authorPlayer = if (!isGame) players.firstOrNull { it.id == item.authorPlayerId } else null
+
+                        val authorColor = when {
+                            isGame -> Color(0xFF8B5CF6) // Distinct vibrant purple for GAME
+                            authorPlayer != null -> PlayerColors.getOrElse(authorPlayer.colorIndex) { PlayerColors[0] }
+                            else -> Color(0xFF94A3B8) // Neutral gray for Anonymous
                         }
-                        val authorLabel = authorPlayer?.name ?: "Anonymous"
+                        val authorLabel = when {
+                            isGame -> "GAME"
+                            authorPlayer != null -> authorPlayer.name
+                            else -> "Anonymous"
+                        }
 
                         Row(
                             modifier = Modifier
@@ -632,7 +682,7 @@ fun WordEntryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                // Author indicator dot matching player's exact color
+                                // Author indicator dot (Purple for GAME)
                                 Box(
                                     modifier = Modifier
                                         .size(14.dp)
@@ -660,30 +710,25 @@ fun WordEntryScreen(
                                     letterSpacing = 2.sp
                                 )
 
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
 
-                                Text(
-                                    text = "(${item.word.length})",
-                                    fontFamily = FredokaFontFamily,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFFA0AAB8)
-                                )
-
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                // Small author pill indicator
+                                // Author pill indicator (GAME gets a distinct purple badge)
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(authorColor.copy(alpha = 0.25f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .background(if (isGame) Color(0xFF8B5CF6).copy(alpha = 0.2f) else authorColor.copy(alpha = 0.25f))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = authorLabel,
                                         fontFamily = FredokaFontFamily,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (authorPlayer != null) TextDark else Color(0xFF475569)
+                                        color = when {
+                                            isGame -> Color(0xFF7C3AED)
+                                            authorPlayer != null -> TextDark
+                                            else -> Color(0xFF475569)
+                                        }
                                     )
                                 }
 
@@ -754,25 +799,52 @@ fun WordEntryScreen(
 }
 
 @Composable
-private fun PresetChip(
+private fun CategoryChip(
     label: String,
+    isLoading: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val isRandom = label.equals("Random", ignoreCase = true)
+    val bgColor = if (isRandom) Color(0xFF8B5CF6) else DarkPill
+    val textColor = PureWhite
+
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(PureWhite)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .background(if (enabled) bgColor else bgColor.copy(alpha = 0.5f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .testTag("category_chip_${label.lowercase().replace(" ", "_")}"),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "+ $label",
-            fontFamily = FredokaFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp,
-            color = NavyBackground
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = PureWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Loading...",
+                    fontFamily = FredokaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = textColor
+                )
+            } else {
+                Text(
+                    text = if (isRandom) "🎲 Random" else label,
+                    fontFamily = FredokaFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = textColor
+                )
+            }
+        }
     }
 }
 

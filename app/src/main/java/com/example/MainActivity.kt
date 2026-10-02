@@ -52,7 +52,14 @@ import com.example.viewmodel.GameViewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: GameViewModel by viewModels()
+    private val viewModel: GameViewModel by viewModels {
+        object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return GameViewModel(application) as T
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,12 +119,14 @@ fun ImpostorApp(viewModel: GameViewModel) {
                         playedWordIds = uiState.playedWordIds,
                         showCategoryToImpostor = uiState.showCategoryToImpostor,
                         showAiHintToImpostor = uiState.showAiHintToImpostor,
+                        isGeneratingCategoryWords = uiState.isGeneratingCategoryWords,
+                        activeGeneratingCategory = uiState.activeGeneratingCategory,
                         onToggleCategory = { viewModel.setShowCategoryToImpostor(it) },
                         onToggleAiHint = { viewModel.setShowAiHintToImpostor(it) },
                         onAddWord = { word, authorId -> viewModel.addWord(word, authorId) },
                         onRemoveWord = { viewModel.removeWord(it) },
                         onClearAll = { viewModel.clearAllWords() },
-                        onQuickPackSelected = { viewModel.quickFillPack(it) },
+                        onCategorySelected = { viewModel.generateWordsForCategory(it) },
                         onStartGame = { viewModel.startGameRound() },
                         onBackClick = { viewModel.returnToLobby() }
                     )
@@ -174,7 +183,7 @@ fun ImpostorApp(viewModel: GameViewModel) {
             }
         }
 
-        // Global Loading Overlay masking Gemini API generation time
+        // Global Loading Overlay: Clean "Loading..." text without internal AI branding
         if (uiState.isSettingUpRound) {
             Box(
                 modifier = Modifier
@@ -199,24 +208,14 @@ fun ImpostorApp(viewModel: GameViewModel) {
                         modifier = Modifier.size(54.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
-                        text = "Setting up the round...",
+                        text = "Loading...",
                         color = PureWhite,
                         fontFamily = FredokaFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Consulting Gemini AI...",
-                        color = PureWhite.copy(alpha = 0.7f),
-                        fontFamily = FredokaFontFamily,
-                        fontSize = 14.sp,
                         textAlign = TextAlign.Center
                     )
                 }

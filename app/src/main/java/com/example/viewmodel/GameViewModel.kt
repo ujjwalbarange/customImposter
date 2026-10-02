@@ -1,5 +1,7 @@
 package com.example.viewmodel
 
+import android.app.Application
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.model.CustomWord
@@ -24,7 +26,10 @@ data class GameUiState(
         Player(id = 3, name = "Player 3", colorIndex = 2),
         Player(id = 4, name = "Player 4", colorIndex = 3)
     ),
-    val words: List<CustomWord> = WordPresets.HOUSEHOLD.take(5).map { CustomWord(word = it) },
+    val words: List<CustomWord> = WordPresets.HOUSEHOLD.take(5).map { CustomWord(word = it, isGameGenerated = true) },
+    val sessionUsedWords: List<String> = WordPresets.HOUSEHOLD.take(5),
+    val isGeneratingCategoryWords: Boolean = false,
+    val activeGeneratingCategory: String? = null,
     val playedWordIds: Set<String> = emptySet(),
     val showCategoryToImpostor: Boolean = true,
     val showAiHintToImpostor: Boolean = true,
@@ -39,8 +44,9 @@ data class GameUiState(
     val lastRoundResult: RoundResult? = null
 )
 
-class GameViewModel : ViewModel() {
+class GameViewModel(application: Application? = null) : ViewModel() {
 
+    private val appContext: Context? = application?.applicationContext
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
     private val secureRandom = SecureRandom()
@@ -93,7 +99,45 @@ class GameViewModel : ViewModel() {
         val trimmed = wordText.trim()
         if (trimmed.isEmpty()) return
         _uiState.update { current ->
-            current.copy(words = current.words + CustomWord(word = trimmed, authorPlayerId = authorPlayerId))
+            val newWord = CustomWord(word = trimmed, authorPlayerId = authorPlayerId, isGameGenerated = false)
+            current.copy(
+                words = current.words + newWord,
+                sessionUsedWords = (current.sessionUsedWords + trimmed).distinct()
+            )
+        }
+    }
+
+    fun generateWordsForCategory(category: String) {
+        if (_uiState.value.isGeneratingCategoryWords) return
+        _uiState.update {
+            it.copy(
+                isGeneratingCategoryWords = true,
+                activeGeneratingCategory = category
+            )
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentUsed = _uiState.value.sessionUsedWords
+            val generated = if (appContext != null) {
+                GeminiHintService.generateCategoryWords(category, currentUsed, appContext)
+            } else {
+                listOf("Elephant", "Giraffe", "Eagle", "Forest", "Waterfall", "Coral")
+            }
+            val newCustomWords = generated.map { w ->
+                CustomWord(
+                    word = w,
+                    category = if (category.equals("Random", ignoreCase = true)) null else category,
+                    authorPlayerId = null,
+                    isGameGenerated = true
+                )
+            }
+            _uiState.update { current ->
+                current.copy(
+                    words = current.words + newCustomWords,
+                    sessionUsedWords = (current.sessionUsedWords + generated).distinct(),
+                    isGeneratingCategoryWords = false,
+                    activeGeneratingCategory = null
+                )
+            }
         }
     }
 
@@ -108,8 +152,12 @@ class GameViewModel : ViewModel() {
 
     fun quickFillPack(pack: List<String>) {
         _uiState.update { current ->
-            val newWords = pack.map { CustomWord(word = it, authorPlayerId = null) }
-            current.copy(words = newWords, playedWordIds = emptySet())
+            val newWords = pack.map { CustomWord(word = it, authorPlayerId = null, isGameGenerated = true) }
+            current.copy(
+                words = newWords,
+                playedWordIds = emptySet(),
+                sessionUsedWords = (current.sessionUsedWords + pack).distinct()
+            )
         }
     }
 
@@ -156,8 +204,8 @@ class GameViewModel : ViewModel() {
 
         // 2. Strict Impostor Selection Logic:
         // The randomly selected Impostor CANNOT be the author of the chosen Secret Word.
-        // Dynamically filter out the author before picking the Impostor.
-        val eligibleImpostors = if (selectedWord.authorPlayerId != null) {
+        // For GAME-generated or Anonymous words, any player can be the Impostor.
+        val eligibleImpostors = if (selectedWord.authorPlayerId != null && !selectedWord.isGameGenerated) {
             val nonAuthors = state.players.filter { it.id != selectedWord.authorPlayerId }
             if (nonAuthors.isNotEmpty()) nonAuthors else state.players
         } else {
@@ -185,13 +233,15 @@ class GameViewModel : ViewModel() {
             }
 
             viewModelScope.launch(Dispatchers.IO) {
-                val result = GeminiHintService.fetchGeminiData(selectedWord.word)
+                val result = GeminiHintService.fetchGeminiData(selectedWord.word, appContext)
+                val finalCategory = result.category.ifBlank { selectedWord.category ?: "Mystery Theme" }
+                val finalHint = result.hint.ifBlank { selectedWord.hint ?: "Secret" }
                 _uiState.update { current ->
                     current.copy(
                         isSettingUpRound = false,
                         phase = GamePhase.PASS_AND_PLAY,
-                        aiCategory = result.category ?: "Secret Words",
-                        aiHint = result.hint
+                        aiCategory = finalCategory,
+                        aiHint = finalHint
                     )
                 }
             }

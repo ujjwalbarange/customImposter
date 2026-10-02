@@ -19,7 +19,10 @@ data class Player(
 data class CustomWord(
     val id: String = java.util.UUID.randomUUID().toString(),
     val word: String,
-    val authorPlayerId: Int? = null
+    val category: String? = null,
+    val hint: String? = null,
+    val authorPlayerId: Int? = null,
+    val isGameGenerated: Boolean = false
 )
 
 data class RoundResult(

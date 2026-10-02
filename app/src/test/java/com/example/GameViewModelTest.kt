@@ -50,6 +50,39 @@ class GameViewModelTest {
     }
 
     @Test
+    fun testCategoryWordGenerationWithGameAttribution() {
+        val vm = GameViewModel()
+        val initialCount = vm.uiState.value.words.size
+
+        // Generate words for a category (runs fallback in unit test)
+        vm.generateWordsForCategory("Books")
+        var waited = 0
+        while (vm.uiState.value.isGeneratingCategoryWords && waited < 3000) {
+            Thread.sleep(50)
+            waited += 50
+        }
+        val state = vm.uiState.value
+        assertEquals(initialCount + 6, state.words.size)
+
+        // The 6 newly added words must have isGameGenerated == true and authorPlayerId == null
+        val generatedWords = state.words.takeLast(6)
+        assertTrue(generatedWords.all { it.isGameGenerated })
+        assertTrue(generatedWords.all { it.authorPlayerId == null })
+
+        // They must also be in sessionUsedWords
+        assertTrue(generatedWords.all { it.word in state.sessionUsedWords })
+    }
+
+    @Test
+    fun testSessionUsedWordsTracking() {
+        val vm = GameViewModel()
+        vm.addWord("CustomSecretWord", authorPlayerId = 1)
+        assertTrue(vm.uiState.value.sessionUsedWords.contains("CustomSecretWord"))
+        assertFalse(vm.uiState.value.words.last().isGameGenerated)
+        assertEquals(1, vm.uiState.value.words.last().authorPlayerId)
+    }
+
+    @Test
     fun testInitialLobbyState() {
         val state = viewModel.uiState.value
         assertEquals(GamePhase.LOBBY, state.phase)

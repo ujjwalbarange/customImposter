@@ -405,7 +405,7 @@ fun LobbyScreen(
                         )
                     }
 
-                    // Toggle 2: Show AI Hint to Impostor
+                    // Toggle 2: Show Hint to Impostor
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -413,14 +413,14 @@ fun LobbyScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = "Show AI Hint to Impostor",
+                                text = "Show Hint to Impostor",
                                 fontFamily = FredokaFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = TextDark
                             )
                             Text(
-                                text = "Gemini AI lateral hint (e.g. 'Moon' for 'Croissant')",
+                                text = "Provides a subtle lateral hint to the Impostor",
                                 fontFamily = FredokaFontFamily,
                                 fontSize = 12.sp,
                                 color = Color(0xFF6B7280)
