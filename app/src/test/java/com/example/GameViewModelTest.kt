@@ -304,4 +304,39 @@ class GameViewModelTest {
         viewModel.finishReveal()
         assertEquals(GamePhase.LOBBY, viewModel.uiState.value.phase)
     }
+
+    @Test
+    fun testCacheViewNavigationAndState() {
+        val vm = GameViewModel()
+        assertEquals(GamePhase.LOBBY, vm.uiState.value.phase)
+
+        // Open cache view from Lobby
+        vm.openCacheView()
+        assertEquals(GamePhase.CACHE_VIEW, vm.uiState.value.phase)
+
+        // Close cache view returns to Lobby
+        vm.closeCacheView()
+        assertEquals(GamePhase.LOBBY, vm.uiState.value.phase)
+
+        // Open from Word Entry
+        vm.goToWordEntry()
+        assertEquals(GamePhase.WORD_ENTRY, vm.uiState.value.phase)
+
+        vm.openCacheView()
+        assertEquals(GamePhase.CACHE_VIEW, vm.uiState.value.phase)
+
+        vm.closeCacheView()
+        assertEquals(GamePhase.WORD_ENTRY, vm.uiState.value.phase)
+    }
+
+    @Test
+    fun testFormatDisplayWord() {
+        assertEquals("Elon Musk", com.example.model.formatDisplayWord("elon_musk"))
+        assertEquals("Taylor Swift", com.example.model.formatDisplayWord("taylor_swift"))
+        assertEquals("Shah Rukh Khan", com.example.model.formatDisplayWord("shah_rukh_khan"))
+        assertEquals("Star Wars", com.example.model.formatDisplayWord("star_wars"))
+        assertEquals("Taylor Swift", com.example.model.formatDisplayWord("Taylor Swift"))
+        assertEquals("RRR", com.example.model.formatDisplayWord("RRR"))
+        assertEquals("A. R. Rahman", com.example.model.formatDisplayWord("A. R. Rahman"))
+    }
 }

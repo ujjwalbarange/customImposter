@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import com.example.model.formatDisplayWord
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,7 +142,7 @@ fun RevealScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = result.secretWord,
+                            text = formatDisplayWord(result.secretWord),
                             color = PureWhite,
                             fontFamily = FredokaFontFamily,
                             fontWeight = FontWeight.Bold,

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +78,7 @@ fun LobbyScreen(
     onRemovePlayer: (Int) -> Unit,
     onRenamePlayer: (Int, String) -> Unit,
     onResetScores: () -> Unit,
+    onOpenCacheView: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var playerToRename by remember { mutableStateOf<Player?>(null) }
@@ -444,6 +446,40 @@ fun LobbyScreen(
                         fontSize = 13.sp,
                         color = Color(0xFF6B7280)
                     )
+
+                    // Chunky 'View Cache' Button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF8B5CF6))
+                            .clickable {
+                                showSettingsDialog = false
+                                onOpenCacheView()
+                            }
+                            .padding(vertical = 12.dp, horizontal = 16.dp)
+                            .testTag("settings_view_cache_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storage,
+                                contentDescription = "View Cache",
+                                tint = PureWhite,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "View Cache",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = PureWhite
+                            )
+                        }
+                    }
 
                     TextButton(
                         onClick = {

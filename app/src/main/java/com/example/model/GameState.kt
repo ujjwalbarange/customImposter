@@ -6,7 +6,8 @@ enum class GamePhase {
     PASS_AND_PLAY,
     DISCUSSION,
     VOTING,
-    REVEAL
+    REVEAL,
+    CACHE_VIEW
 }
 
 data class Player(
@@ -16,6 +17,17 @@ data class Player(
     val score: Int = 0
 )
 
+fun formatDisplayWord(word: String): String {
+    val unescaped = word.replace('_', ' ').trim()
+    return if (unescaped.isNotEmpty() && unescaped.all { !it.isLetter() || it.isLowerCase() }) {
+        unescaped.split(" ").filter { it.isNotBlank() }.joinToString(" ") { segment ->
+            segment.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+    } else {
+        unescaped
+    }
+}
+
 data class CustomWord(
     val id: String = java.util.UUID.randomUUID().toString(),
     val word: String,
@@ -23,7 +35,10 @@ data class CustomWord(
     val hint: String? = null,
     val authorPlayerId: Int? = null,
     val isGameGenerated: Boolean = false
-)
+) {
+    val displayWord: String
+        get() = formatDisplayWord(word)
+}
 
 data class RoundResult(
     val secretWord: String,

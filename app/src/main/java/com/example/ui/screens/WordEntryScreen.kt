@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -100,6 +101,7 @@ fun WordEntryScreen(
     onRemoveWord: (String) -> Unit,
     onClearAll: () -> Unit,
     onCategorySelected: (String) -> Unit = {},
+    onOpenCacheView: () -> Unit = {},
     onStartGame: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -250,6 +252,42 @@ fun WordEntryScreen(
                                 checkedTrackColor = PrimaryCyan
                             )
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Chunky 'View Cache' Button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF8B5CF6))
+                            .clickable {
+                                showSettingsDialog = false
+                                onOpenCacheView()
+                            }
+                            .padding(vertical = 12.dp, horizontal = 16.dp)
+                            .testTag("word_entry_settings_view_cache_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storage,
+                                contentDescription = "View Cache",
+                                tint = PureWhite,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "View Cache",
+                                fontFamily = FredokaFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = PureWhite
+                            )
+                        }
                     }
                 }
             },

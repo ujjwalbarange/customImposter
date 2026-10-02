@@ -58,12 +58,18 @@ object LocalWordCacheManager {
         "Famous People" to listOf(
             "Einstein" to "Relativity",
             "Cleopatra" to "Pharaoh",
+            "Elon Musk" to "Rocket",
+            "Shah Rukh Khan" to "Mannat",
+            "Steve Jobs" to "Keynote",
+            "MrBeast" to "Challenge",
+            "Mahatma Gandhi" to "Charkha",
+            "Cristiano Ronaldo" to "Siuuu",
+            "Ratan Tata" to "Trust",
+            "Leonardo DiCaprio" to "Totem",
+            "Lionel Messi" to "World Cup",
             "Shakespeare" to "Playwright",
-            "Mozart" to "Symphony",
-            "Da Vinci" to "Canvas",
-            "Newton" to "Gravity",
-            "Galileo" to "Telescope",
-            "Beethoven" to "Orchestra"
+            "Newton" to "Apple",
+            "Da Vinci" to "Mona Lisa"
         ),
         "Games & Leisure" to listOf(
             "Chess" to "Checkmate",
@@ -88,22 +94,32 @@ object LocalWordCacheManager {
             "Shower" to "Droplets"
         ),
         "Movies & TV" to listOf(
+            "Titanic" to "Iceberg",
+            "Inception" to "Totem",
+            "Sholay" to "Gabbar",
+            "RRR" to "Naatu",
+            "Avatar" to "Pandora",
+            "Interstellar" to "Blackhole",
+            "3 Idiots" to "Virus",
+            "Soundtrack" to "Score",
             "Cinema" to "Ticket",
             "Popcorn" to "Butter",
-            "Premiere" to "Red Carpet",
-            "Director" to "Megaphone",
-            "Oscar" to "Statuette",
-            "Projector" to "Reel",
-            "Screenplay" to "Script",
-            "Trailer" to "Preview"
+            "Musical" to "Chorus",
+            "Oscar" to "Statuette"
         ),
         "Music" to listOf(
+            "Arijit Singh" to "Melody",
+            "Taylor Swift" to "Eras",
+            "A. R. Rahman" to "Jai Ho",
+            "Michael Jackson" to "Moonwalk",
+            "Freddie Mercury" to "Bohemian",
+            "Sitar" to "Raga",
+            "Tabla" to "Taal",
             "Guitar" to "Fretboard",
             "Piano" to "Ivory",
             "Drums" to "Cymbal",
             "Violin" to "Bow",
-            "Flute" to "Woodwind",
-            "Trumpet" to "Brass",
+            "Flute" to "Melody",
             "Saxophone" to "Jazz",
             "Conductor" to "Baton"
         ),
@@ -151,6 +167,94 @@ object LocalWordCacheManager {
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    fun getAllCachedWords(context: Context): List<CachedWordCombination> {
+        val list = mutableListOf<CachedWordCombination>()
+        try {
+            val prefs = getPrefs(context)
+            var cachedJson = prefs.getString(KEY_CACHE, null)
+
+            // Seed initial library if empty so user has offline words immediately
+            if (cachedJson.isNullOrBlank() || cachedJson == "[]") {
+                seedInitialCache(context)
+                cachedJson = prefs.getString(KEY_CACHE, "[]")
+            }
+
+            val array = JSONArray(cachedJson ?: "[]")
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val word = obj.optString("word", "").trim()
+                val category = obj.optString("category", "").trim().ifBlank { "General" }
+                val hint = obj.optString("hint", "").trim().ifBlank { "Clue" }
+                if (word.isNotBlank()) {
+                    list.add(CachedWordCombination(word = word, category = category, hint = hint))
+                }
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+
+    @Synchronized
+    fun seedInitialCache(context: Context) {
+        try {
+            val prefs = getPrefs(context)
+            val array = JSONArray()
+            SEED_WORDS.forEach { (cat, pairs) ->
+                pairs.forEach { (w, h) ->
+                    array.put(JSONObject().apply {
+                        put("word", w)
+                        put("category", cat)
+                        put("hint", h)
+                    })
+                }
+            }
+            prefs.edit().putString(KEY_CACHE, array.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    @Synchronized
+    fun deleteWord(context: Context, word: String) {
+        try {
+            val prefs = getPrefs(context)
+            val cachedJson = prefs.getString(KEY_CACHE, "[]") ?: "[]"
+            val array = JSONArray(cachedJson)
+            val newArray = JSONArray()
+            val target = word.trim()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                if (!obj.optString("word", "").equals(target, ignoreCase = true)) {
+                    newArray.put(obj)
+                }
+            }
+            prefs.edit().putString(KEY_CACHE, newArray.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    @Synchronized
+    fun deleteWords(context: Context, wordsToDelete: Set<String>) {
+        try {
+            val prefs = getPrefs(context)
+            val cachedJson = prefs.getString(KEY_CACHE, "[]") ?: "[]"
+            val array = JSONArray(cachedJson)
+            val newArray = JSONArray()
+            val targets = wordsToDelete.map { it.trim().lowercase() }.toSet()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                if (obj.optString("word", "").trim().lowercase() !in targets) {
+                    newArray.put(obj)
+                }
+            }
+            prefs.edit().putString(KEY_CACHE, newArray.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    @Synchronized
+    fun clearAllCache(context: Context) {
+        try {
+            val prefs = getPrefs(context)
+            prefs.edit().putString(KEY_CACHE, "[]").apply()
+        } catch (_: Exception) {}
     }
 
     @Synchronized

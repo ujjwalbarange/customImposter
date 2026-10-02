@@ -3,6 +3,7 @@ package com.example.service
 import android.content.Context
 import android.util.Log
 import com.example.BuildConfig
+import com.example.model.formatDisplayWord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -116,10 +117,29 @@ object GeminiHintService {
             ""
         }
 
+        val categoryDiversityRules = """
+        When generating words for the 'Famous People', 'Movies & TV', or 'Music' categories, ensure a highly diverse mix.
+        * 'Famous People' must encompass both prominent historical figures and popular contemporary personalities (including actors, relevant politicians, prominent businessmen, entrepreneurs, and internet personalities with massive social media relevance) and you can give hint tricky according to their most popular or most hyped moments in single word.
+        * 'Movies & TV' should feature widely recognized films and shows spanning both Hollywood and Bollywood, as well as related words to music.
+        * 'Music' should include popular musicians and widely known songs from both Western and Indian pop culture, as well as various musical instruments and related words to music.
+        * CRITICAL FULL NAME & MULTI-WORD RULE:
+          Always write out the WHOLE name or complete multi-word term. NEVER write just the last name or a single word abbreviation!
+          For example:
+          - Write 'taylor_swift' (or 'Taylor Swift'), NEVER just 'Swift'.
+          - Write 'elon_musk' (or 'Elon Musk'), NEVER just 'Musk'.
+          - Write 'shah_rukh_khan' (or 'Shah Rukh Khan'), NEVER just 'Khan'.
+          - Write 'steve_jobs' (or 'Steve Jobs'), NEVER just 'Jobs'.
+          - Write 'michael_jackson' (or 'Michael Jackson'), NEVER just 'Jackson'.
+          - Write 'cristiano_ronaldo' (or 'Cristiano Ronaldo'), NEVER just 'Ronaldo'.
+          - Write 'star_wars' (or 'Star Wars'), 'electric_guitar' (or 'Electric Guitar'), 'ice_cream' (or 'Ice Cream').
+          Any entity consisting of 2 or more words can be written using underscores (e.g., 'elon_musk', 'taylor_swift') or clean spaces.
+        """.trimIndent()
+
         val prompt = if (category.equals("Random", ignoreCase = true)) {
             """
             You are generating words for a social deduction party game.
             Generate exactly 6 unique, recognizable, family-friendly words from a diverse mix of different everyday categories.
+            $categoryDiversityRules
             $usedWordsString
             CRITICAL LANGUAGE RULE: Response must strictly be in English.
             Output ONLY a raw JSON object with a single key "words" containing an array of exactly 6 strings.
@@ -129,6 +149,7 @@ object GeminiHintService {
             """
             You are generating words for a social deduction party game.
             Generate exactly 6 unique, recognizable, family-friendly words belonging strictly to the category: '$category'.
+            $categoryDiversityRules
             $usedWordsString
             CRITICAL LANGUAGE RULE: Response must strictly be in English.
             Output ONLY a raw JSON object with a single key "words" containing an array of exactly 6 strings.
@@ -216,11 +237,12 @@ object GeminiHintService {
     }
 
     suspend fun fetchGeminiData(secretWord: String, context: Context? = null): GeminiHintResult = withContext(Dispatchers.IO) {
+        val cleanWord = formatDisplayWord(secretWord)
         val prompt = """
-            You are generating game clues for a social deduction game. The secret word is '$secretWord'. 
+            You are generating game clues for a social deduction game. The secret word is '$cleanWord'. 
             Return a raw JSON object with exactly two keys: 'category' and 'hint'.
             Rule 1 for 'category': Provide a broad 1 to 3 word classification (e.g., 'Kitchen Appliance', 'Location', 'Food & Dining', 'Animals & Nature').
-            Rule 2 for 'hint': Provide exactly one single word or short 2-word punchy clue that is laterally or tangentially associated with the secret word (e.g., if the word is 'Croissant', the hint is 'Moon'; if 'Samosa', the hint is 'Pastry' or 'Crispy'). Do not use direct synonyms.
+            Rule 2 for 'hint': Provide exactly one single word or short 2-word punchy clue that is laterally or tangentially associated with the secret word (e.g., if the word is 'Croissant', the hint is 'Moon'; if 'Samosa', the hint is 'Pastry' or 'Crispy'). For 'Famous People', you can give a tricky hint according to their most popular or most hyped moments in a single word. Do not use direct synonyms.
             CRITICAL LANGUAGE RULE: Your response must strictly be in English, using only the English alphabet. If the secret word is a cultural term (e.g., 'Samosa'), process the meaning but output the JSON values in pure English.
         """.trimIndent()
 

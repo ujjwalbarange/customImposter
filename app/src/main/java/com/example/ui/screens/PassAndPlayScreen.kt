@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.example.model.formatDisplayWord
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -232,7 +233,7 @@ fun PassAndPlayScreen(
                         } else {
                             // Civilian view: Huge Secret Word
                             Text(
-                                text = secretWord.uppercase(),
+                                text = formatDisplayWord(secretWord).uppercase(),
                                 color = PureWhite,
                                 fontFamily = FredokaFontFamily,
                                 fontWeight = FontWeight.Bold,

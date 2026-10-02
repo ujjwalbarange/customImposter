@@ -9,7 +9,9 @@ import com.example.model.GamePhase
 import com.example.model.Player
 import com.example.model.RoundResult
 import com.example.model.WordPresets
+import com.example.service.CachedWordCombination
 import com.example.service.GeminiHintService
+import com.example.service.LocalWordCacheManager
 import java.security.SecureRandom
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +43,9 @@ data class GameUiState(
     val currentSecretWord: String = "",
     val impostorPlayerId: Int = -1,
     val selectedVotePlayerId: Int? = null,
-    val lastRoundResult: RoundResult? = null
+    val lastRoundResult: RoundResult? = null,
+    val cachedWords: List<CachedWordCombination> = emptyList(),
+    val previousPhaseBeforeCache: GamePhase = GamePhase.LOBBY
 )
 
 class GameViewModel(application: Application? = null) : ViewModel() {
@@ -50,6 +54,52 @@ class GameViewModel(application: Application? = null) : ViewModel() {
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
     private val secureRandom = SecureRandom()
+
+    // --- Cache Management ---
+    fun openCacheView() {
+        val words = appContext?.let { LocalWordCacheManager.getAllCachedWords(it) } ?: emptyList()
+        _uiState.update { current ->
+            current.copy(
+                phase = GamePhase.CACHE_VIEW,
+                previousPhaseBeforeCache = current.phase,
+                cachedWords = words
+            )
+        }
+    }
+
+    fun closeCacheView() {
+        _uiState.update { current ->
+            current.copy(
+                phase = if (current.previousPhaseBeforeCache == GamePhase.CACHE_VIEW) GamePhase.LOBBY else current.previousPhaseBeforeCache
+            )
+        }
+    }
+
+    fun deleteCachedWord(word: String) {
+        appContext?.let { LocalWordCacheManager.deleteWord(it, word) }
+        _uiState.update { current ->
+            current.copy(cachedWords = current.cachedWords.filterNot { it.word.equals(word, ignoreCase = true) })
+        }
+    }
+
+    fun deleteCachedWords(wordsToDelete: Set<String>) {
+        if (wordsToDelete.isEmpty()) return
+        appContext?.let { LocalWordCacheManager.deleteWords(it, wordsToDelete) }
+        val targets = wordsToDelete.map { it.trim().lowercase() }.toSet()
+        _uiState.update { current ->
+            current.copy(cachedWords = current.cachedWords.filterNot { it.word.trim().lowercase() in targets })
+        }
+    }
+
+    fun clearAllCache() {
+        appContext?.let { LocalWordCacheManager.clearAllCache(it) }
+        _uiState.update { it.copy(cachedWords = emptyList()) }
+    }
+
+    fun refreshCache() {
+        val words = appContext?.let { LocalWordCacheManager.getAllCachedWords(it) } ?: emptyList()
+        _uiState.update { it.copy(cachedWords = words) }
+    }
 
     // --- Settings ---
     fun setShowCategoryToImpostor(enabled: Boolean) {

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.GamePhase
+import com.example.ui.screens.CacheViewScreen
 import com.example.ui.screens.DiscussionScreen
 import com.example.ui.screens.LobbyScreen
 import com.example.ui.screens.PassAndPlayScreen
@@ -82,6 +83,7 @@ fun ImpostorApp(viewModel: GameViewModel) {
     BackHandler(enabled = uiState.phase != GamePhase.LOBBY && !uiState.isSettingUpRound) {
         when (uiState.phase) {
             GamePhase.LOBBY -> { /* Default system exit */ }
+            GamePhase.CACHE_VIEW -> viewModel.closeCacheView()
             GamePhase.WORD_ENTRY -> viewModel.returnToLobby()
             GamePhase.PASS_AND_PLAY -> viewModel.returnToLobby()
             GamePhase.DISCUSSION -> viewModel.returnToLobby()
@@ -108,7 +110,8 @@ fun ImpostorApp(viewModel: GameViewModel) {
                         onAddPlayer = { viewModel.addPlayer() },
                         onRemovePlayer = { viewModel.removePlayer(it) },
                         onRenamePlayer = { id, name -> viewModel.renamePlayer(id, name) },
-                        onResetScores = { viewModel.resetScores() }
+                        onResetScores = { viewModel.resetScores() },
+                        onOpenCacheView = { viewModel.openCacheView() }
                     )
                 }
 
@@ -127,8 +130,19 @@ fun ImpostorApp(viewModel: GameViewModel) {
                         onRemoveWord = { viewModel.removeWord(it) },
                         onClearAll = { viewModel.clearAllWords() },
                         onCategorySelected = { viewModel.generateWordsForCategory(it) },
+                        onOpenCacheView = { viewModel.openCacheView() },
                         onStartGame = { viewModel.startGameRound() },
                         onBackClick = { viewModel.returnToLobby() }
+                    )
+                }
+
+                GamePhase.CACHE_VIEW -> {
+                    CacheViewScreen(
+                        cachedWords = uiState.cachedWords,
+                        onDeleteWord = { viewModel.deleteCachedWord(it) },
+                        onDeleteWords = { viewModel.deleteCachedWords(it) },
+                        onClearAllCache = { viewModel.clearAllCache() },
+                        onBackClick = { viewModel.closeCacheView() }
                     )
                 }
 
