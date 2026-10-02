@@ -115,7 +115,8 @@ fun PassAndPlayScreen(
                         color = TextDark,
                         fontFamily = FredokaFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 36.sp,
+                        fontSize = 34.sp,
+                        lineHeight = 42.sp,
                         letterSpacing = 1.sp,
                         textAlign = TextAlign.Center
                     )
@@ -231,24 +232,33 @@ fun PassAndPlayScreen(
                                 }
                             }
                         } else {
-                            // Civilian view: Huge Secret Word
+                            // Civilian view: Secret Word with proper line spacing and adaptive font size
+                            val formattedWord = formatDisplayWord(secretWord).uppercase()
+                            val (wordFontSize, wordLineHeight) = when {
+                                formattedWord.length > 16 -> 26.sp to 36.sp
+                                formattedWord.length > 10 -> 30.sp to 42.sp
+                                else -> 36.sp to 48.sp
+                            }
                             Text(
-                                text = formatDisplayWord(secretWord).uppercase(),
+                                text = formattedWord,
                                 color = PureWhite,
                                 fontFamily = FredokaFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 38.sp,
-                                letterSpacing = 1.5.sp,
-                                textAlign = TextAlign.Center
+                                fontSize = wordFontSize,
+                                lineHeight = wordLineHeight,
+                                letterSpacing = 1.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 8.dp)
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
                                 text = "Keep it secret! Give subtle clues.",
                                 color = PureWhite.copy(alpha = 0.7f),
                                 fontFamily = FredokaFontFamily,
                                 fontSize = 14.sp,
+                                lineHeight = 18.sp,
                                 textAlign = TextAlign.Center
                             )
                         }

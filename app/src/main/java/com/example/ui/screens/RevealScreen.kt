@@ -146,7 +146,9 @@ fun RevealScreen(
                             color = PureWhite,
                             fontFamily = FredokaFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp
+                            fontSize = 26.sp,
+                            lineHeight = 34.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -176,7 +178,9 @@ fun RevealScreen(
                             color = DeleteRed,
                             fontFamily = FredokaFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp
+                            fontSize = 26.sp,
+                            lineHeight = 34.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
